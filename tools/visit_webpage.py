@@ -3,6 +3,7 @@ from smolagents.tools import Tool
 import requests
 import markdownify
 import smolagents
+import re 
 
 class VisitWebpageTool(Tool):
     name = "visit_webpage"
