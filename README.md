@@ -1,6 +1,6 @@
 ---
 title: First Agent Template
-emoji: ⚡
+emoji: "🤖"
 colorFrom: pink
 colorTo: yellow
 sdk: gradio
@@ -15,16 +15,16 @@ tags:
 - agent-course
 ---
 
-# Simple Local Agent 🤖
+# Simple Local Agent
 
 Un agent conversationnel simple utilisant SmoLAgents pour se connecter à un modèle de langage, que ce soit via un serveur local (LMStudio) ou via d'autres APIs.
 
-## Prérequis 📋
+## Prérequis
 
 - Python 3.8+
 - Un modèle de langage hébergé localement ou accessible via une API
 
-## Installation ⚙️
+## Installation
 
 1. Installez les dépendances requises :
 
@@ -32,7 +32,7 @@ Un agent conversationnel simple utilisant SmoLAgents pour se connecter à un mod
 pip install -r requirements.txt
 ```
 
-## Utilisation 💻
+## Utilisation
 
 ### Interface Gradio
 
@@ -124,4 +124,4 @@ Voici quelques exemples de questions que vous pouvez poser à l'agent :
 
 ---
 
-*Consultez la référence de configuration sur https://huggingface.co/docs/hub/spaces-config-reference* 🌐
+*Consultez la référence de configuration sur https://huggingface.co/docs/hub/spaces-config-reference*

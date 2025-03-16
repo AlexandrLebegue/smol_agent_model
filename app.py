@@ -3,12 +3,17 @@ import datetime
 import requests
 import pytz
 import yaml
+import os
+import sys 
+import subprocess  # Ajout de l'import manquant pour ShellCommandTool
+import io
+import json
+from huggingface_hub import HfApi
 from tools.final_answer import FinalAnswerTool
 from tools.visit_webpage import VisitWebpageTool
 from tools.web_search import DuckDuckGoSearchTool
 from Gradio_UI import GradioUI
 from smolagents.models import OpenAIServerModel
-from tools.shell_tool import ShellCommandTool
 from tools.create_file_tool import CreateFileTool
 from tools.modify_file_tool import ModifyFileTool
 
@@ -71,9 +76,18 @@ image_generation_tool = load_tool("agents-course/text-to-image", trust_remote_co
 with open("prompts.yaml", 'r') as stream:
     prompt_templates = yaml.safe_load(stream)
     
+# Tentative de correction pour ShellCommandTool
+try:
+    from tools.shell_tool import ShellCommandTool
+    shell_tool = ShellCommandTool()
+except Exception as e:
+    print(f"Erreur lors du chargement de ShellCommandTool: {e}")
+    # Créer une version simplifiée de l'outil si nécessaire
+    shell_tool = None
+
 agent = CodeAgent(
     model=model,
-    tools=[final_answer, DuckDuckGoSearchTool(), VisitWebpageTool(), ShellCommandTool(), CreateFileTool(), ModifyFileTool()],
+    tools=[final_answer, DuckDuckGoSearchTool(), VisitWebpageTool(), CreateFileTool(), ModifyFileTool()],
     max_steps=6,
     verbosity_level=1,
     grammar=None,
@@ -83,5 +97,40 @@ agent = CodeAgent(
     prompt_templates=prompt_templates
 )
 
+# Ajouter ShellCommandTool conditionnellement
+if shell_tool is not None:
+    agent.tools['shell_command'] = shell_tool
+
+# Sauvegarder manuellement sans utiliser to_dict() pour éviter les erreurs de validation
+agent_data = {
+    "name": agent.name,
+    "description": agent.description,
+    "model": agent.model.to_dict() if hasattr(agent.model, "to_dict") else str(agent.model),
+    "tools": [tool.__class__.__name__ for tool in agent.tools.values()],
+    "max_steps": agent.max_steps,
+    "grammar": agent.grammar,
+    "planning_interval": agent.planning_interval,
+}
+
+# # Sauvegarder l'agent au format JSON personnalisé
+# with open("agent.json", "w", encoding="utf-8") as f:
+#     json.dump(agent_data, f, ensure_ascii=False, indent=2)
+
+# # La méthode push_to_hub pose problème avec les emojis, utiliser plutôt le script push_to_hf.py
+# print("Agent sauvegardé dans agent.json. Utilisez push_to_hf.py pour le pousser sur Hugging Face.")
+
+# Utiliser l'API Hugging Face directement avec encodage UTF-8
+# try:
+#     api = HfApi()
+#     api.upload_file(
+#         path_or_fileobj="agent.json",
+#         path_in_repo="agent.json",
+#         repo_id="KebabLover/SmolCoderAgent_0_1",
+#         repo_type="space",
+#         commit_message="Mise à jour de l'agent"
+#     )
+#     print("Agent poussé avec succès vers Hugging Face!")
+# except Exception as e:
+#     print(f"Erreur lors du push vers Hugging Face: {e}")
 
 GradioUI(agent).launch()
