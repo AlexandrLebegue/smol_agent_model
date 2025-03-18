@@ -145,7 +145,7 @@ def initialize_agent(model_type="openai_server", model_config=None):
             # CreateFileTool(),           # Allows creation of new files
             # ModifyFileTool()            # Enables modification of existing files
         ],
-        max_steps=20,                   # Maximum number of reasoning steps
+        max_steps=5,                   # Maximum number of reasoning steps
         verbosity_level=1,              # Level of detail in agent's output
         grammar=None,                   # Optional grammar for structured output
         planning_interval=None,         # How often to re-plan (None = no explicit planning)
