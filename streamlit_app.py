@@ -492,7 +492,7 @@ def main():
     # Initialize conversation history if not already in session state
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Bonjour! Comment puis-je vous aider aujourd'hui?", "is_code" : False}
+            {"role": "assistant", "content": "Bonjour! Comment puis-je vous aider aujourd'hui ? Je suis capable de générer des applications. Demandez-moi par exemple 'génére moi une application de simulateur de fusée 🚀' ", "is_code" : False}
         ]
     
     # Display conversation history
