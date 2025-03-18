@@ -15,113 +15,180 @@ tags:
 - agent-course
 ---
 
-# Simple Local Agent
+# SmoLAgents Conversational Agent
 
-Un agent conversationnel simple utilisant SmoLAgents pour se connecter à un modèle de langage, que ce soit via un serveur local (LMStudio) ou via d'autres APIs.
+A powerful conversational agent built with SmoLAgents that can connect to various language models, perform web searches, create visualizations, execute code, and much more.
 
-## Prérequis
+## 📋 Overview
+
+This project provides a flexible and powerful conversational agent that can:
+
+- Connect to different types of language models (local or cloud-based)
+- Perform web searches to retrieve up-to-date information
+- Visit and extract content from webpages
+- Execute shell commands with appropriate security measures
+- Create and modify files
+- Generate data visualizations based on natural language requests
+- Execute Python code within the chat interface
+
+The agent is available through two interfaces:
+- A Gradio interface (original)
+- A Streamlit interface (new) with enhanced features and configuration options
+
+## 🛠️ Prerequisites
 
 - Python 3.8+
-- Un modèle de langage hébergé localement ou accessible via une API
+- A language model, which can be one of:
+  - A local model running through an OpenAI-compatible API server (like [LM Studio](https://lmstudio.ai/), [Ollama](https://ollama.ai/), etc.)
+  - A Hugging Face model accessible via API
+  - A cloud-based model with API access
 
-## Installation
+## 🚀 Installation
 
-1. Installez les dépendances requises :
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/smolagents-conversational-agent.git
+   cd smolagents-conversational-agent
+   ```
 
-```bash
-pip install -r requirements.txt
-```
+2. Install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## Utilisation
+## 🔧 Setup
 
-### Interface Gradio
+### Setting Up a Language Model
 
-1. Assurez-vous que votre serveur LLM est en cours d'exécution à l'adresse spécifiée.
+You have several options for the language model:
 
-2. Lancez l'agent avec l'interface Gradio :
+#### Option 1: Local Model with LM Studio (Recommended for beginners)
 
-```bash
-python app.py
-```
+1. Download and install [LM Studio](https://lmstudio.ai/)
+2. Launch LM Studio and download a model (e.g., Mistral 7B, Llama 2, etc.)
+3. Start the local server by clicking "Start Server"
+4. Note the server URL (typically http://localhost:1234/v1)
 
-### Interface Streamlit (Nouvelle !)
+#### Option 2: Using OpenRouter
 
-Nous avons également ajouté une interface Streamlit qui offre plus de flexibilité et d'options de configuration :
+1. Create an account on [OpenRouter](https://openrouter.ai/)
+2. Get your API key from the dashboard
+3. Use the OpenRouter URL and your API key in the agent configuration
 
-1. Lancez l'application Streamlit :
+#### Option 3: Hugging Face API ( no more tested be careful )
 
-```bash
-streamlit run streamlit_app.py
-```
+1. If you have access to Hugging Face API endpoints, you can use them directly
+2. Configure the URL and parameters in the agent interface
 
-2. Accédez à l'interface via votre navigateur web (généralement à l'adresse http://localhost:8501).
+## 💻 Usage
 
-### Fonctionnalités de l'interface Streamlit
+### Streamlit Interface (Recommended)
 
-- **Interface de chat interactive** pour discuter avec l'agent
-- **Choix entre différents types de modèles** :
-  - OpenAI Server (LMStudio ou autre serveur compatible OpenAI)
+The Streamlit interface offers a more user-friendly experience with additional features:
+
+1. Launch the Streamlit application:
+   ```bash
+   streamlit run streamlit_app.py
+   ```
+
+2. Access the interface in your web browser at http://localhost:8501
+
+3. Configure your model in the sidebar:
+   - Select the model type (OpenAI Server, Hugging Face API, or Hugging Face Cloud)
+   - Enter the required configuration parameters
+   - Click "Apply Configuration"
+
+4. Start chatting with the agent in the main interface
+
+### Gradio Interface
+
+The original Gradio interface is still available:
+
+1. Launch the Gradio application:
+   ```bash
+   python app.py
+   ```
+
+2. Access the interface in your web browser at the URL displayed in the terminal (typically http://localhost:7860)
+
+## 🌟 Features
+
+### Streamlit Interface Features
+
+- **Interactive Chat Interface**: Engage in natural conversations with the agent
+- **Multiple Model Support**:
+  - OpenAI Server (LM Studio or other OpenAI-compatible servers)
   - Hugging Face API
   - Hugging Face Cloud
-- **Configuration personnalisable** pour chaque type de modèle
-- **Affichage en temps réel** du raisonnement de l'agent
-- **Informations utiles** dans la barre latérale
+- **Real-time Agent Reasoning**: See the agent's thought process as it works on your request
+- **Customizable Configuration**: Adjust model parameters without modifying code
+- **Data Visualization**: Request and generate charts directly in the chat
+- **Code Execution**: Run Python code generated by the agent within the chat interface
+- **Timezone Display**: Check current time in different time zones
 
-## Configuration ⚙️
+### Agent Tools
 
-### Configuration du modèle
+The agent comes equipped with several powerful tools:
 
-L'interface Streamlit permet de configurer facilement le modèle sans modifier le code source :
+- **Web Search**: Search the web via DuckDuckGo to get up-to-date information
+- **Webpage Visiting**: Visit and extract content from specific webpages
+- **Shell Command Execution**: Run commands on your system (with appropriate security)
+- **File Operations**: Create and modify files on your system
+- **Data Visualization**: Generate charts and graphs based on your requests
+- **Code Execution**: Run Python code within the chat interface
 
-- **OpenAI Server** : URL du serveur, ID du modèle, clé API
-- **Hugging Face API** : URL du modèle, tokens maximum, température
-- **Hugging Face Cloud** : URL de l'endpoint, tokens maximum, température
+## 🧩 Extending the Agent
 
-### Configuration des outils
+### Adding Custom Tools
 
-L'agent est équipé de plusieurs outils puissants qui lui permettent d'interagir avec le monde extérieur et d'effectuer diverses actions :
-
-#### Outils principaux intégrés
-
-- **DuckDuckGoSearchTool** : Permet à l'agent d'effectuer des recherches web via DuckDuckGo pour obtenir des informations à jour sur n'importe quel sujet.
-- **VisitWebpageTool** : Permet à l'agent de visiter une page web spécifique et d'en extraire le contenu pour analyse.
-- **ShellCommandTool** : Donne à l'agent la capacité d'exécuter des commandes shell sur le système hôte (avec les précautions de sécurité appropriées).
-- **CreateFileTool** : Permet à l'agent de créer de nouveaux fichiers dans le système.
-- **ModifyFileTool** : Permet à l'agent de modifier des fichiers existants.
-- **FinalAnswerTool** : Fournit une réponse finale structurée à l'utilisateur, résumant les informations trouvées.
-
-#### Outils personnalisés
-
-L'agent inclut également quelques outils personnalisés :
-
-- **get_current_realtime** : Renvoie l'heure actuelle du système.
-- **get_current_time_in_timezone** : Récupère l'heure locale actuelle dans un fuseau horaire spécifié (par exemple, "Europe/Paris", "America/New_York").
-
-#### Extensibilité
-
-L'architecture de l'agent est conçue pour être facilement extensible. Vous pouvez ajouter vos propres outils personnalisés en suivant le modèle d'exemple dans le fichier `app.py` :
+You can extend the agent with your own custom tools by modifying the `app.py` file:
 
 ```python
 @tool
 def my_custom_tool(arg1: str, arg2: int) -> str:
-    """Description de ce que fait l'outil
+    """Description of what the tool does
     Args:
-        arg1: description du premier argument
-        arg2: description du second argument
+        arg1: description of the first argument
+        arg2: description of the second argument
     """
-    # Implémentation de votre outil
-    return "Résultat de l'outil"
+    # Your tool implementation
+    return "Tool result"
 ```
 
-## Exemples d'utilisation
+### Customizing Prompts
 
-Voici quelques exemples de questions que vous pouvez poser à l'agent :
+The agent's behavior can be customized by modifying the prompt templates in the `prompts.yaml` file.
 
-- "Quelle est l'heure actuelle à Tokyo ?"
-- "Peux-tu me faire un résumé des dernières nouvelles sur l'IA ?"
-- "Crée un fichier contenant un exemple de code Python pour trier une liste"
-- "Explique-moi comment fonctionne la technologie des transformers en IA"
+## 📊 Visualization Examples
+
+The agent can generate visualizations based on natural language requests. Try asking:
+
+- "Show me a line chart of temperature trends over the past year"
+- "Create a bar chart of sales by region"
+- "Display a scatter plot of age vs. income"
+
+## 🔍 Troubleshooting
+
+- **Agent not responding**: Verify that your LLM server is running and accessible
+- **Connection errors**: Check the URL and API key in your configuration
+- **Slow responses**: Consider using a smaller or more efficient model
+- **Missing dependencies**: Ensure all requirements are installed via `pip install -r requirements.txt`
+
+## 📚 Examples
+
+Here are some example queries you can try with the agent:
+
+- "What's the current time in Tokyo?"
+- "Can you summarize the latest news about AI?"
+- "Create a Python function to sort a list of dictionaries by a specific key"
+- "Explain how transformer models work in AI"
+- "Show me a bar chart of population by continent"
+- "Write a simple web scraper to extract headlines from a news website"
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
-*Consultez la référence de configuration sur https://huggingface.co/docs/hub/spaces-config-reference*
+*For more information on Hugging Face Spaces configuration, visit https://huggingface.co/docs/hub/spaces-config-reference*

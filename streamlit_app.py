@@ -1,3 +1,12 @@
+# =============================================================================
+# STREAMLIT APPLICATION FOR SMOLAGENTS CONVERSATIONAL AGENT
+# =============================================================================
+# This application provides a web interface for interacting with a SmoLAgents-based
+# conversational agent. It supports multiple model backends, visualization capabilities,
+# and a rich chat interface.
+# =============================================================================
+
+# Standard library imports
 import streamlit as st
 import os
 import sys
@@ -8,12 +17,15 @@ import pandas as pd
 import numpy as np
 from typing import List, Dict, Any, Optional, Union, Tuple
 
-# Ajout du répertoire courant au chemin Python pour importer les modules
+# Add current directory to Python path to import local modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Import des composants nécessaires pour l'agent
+# SmoLAgents and related imports
 from smolagents import CodeAgent
 from smolagents.models import OpenAIServerModel, HfApiModel
+from smolagents.memory import ToolCall
+
+# Tool imports for agent capabilities
 from tools.final_answer import FinalAnswerTool
 from tools.validate_final_answer import ValidateFinalAnswer
 from tools.visit_webpage import VisitWebpageTool
@@ -21,13 +33,14 @@ from tools.web_search import DuckDuckGoSearchTool
 from tools.shell_tool import ShellCommandTool
 from tools.create_file_tool import CreateFileTool
 from tools.modify_file_tool import ModifyFileTool
+
+# Telemetry imports (currently disabled)
 from phoenix.otel import register
 from openinference.instrumentation.smolagents import SmolagentsInstrumentor
-from smolagents.memory import ToolCall
 # register()
 # SmolagentsInstrumentor().instrument()
 
-# Import des fonctions de visualisation
+# Visualization functionality imports
 from visualizations import (
     create_line_chart,
     create_bar_chart,
@@ -36,47 +49,60 @@ from visualizations import (
     generate_sample_data
 )
 
-# Configuration de la page Streamlit
+# Configure Streamlit page settings
 st.set_page_config(
     page_title="Agent Conversationnel SmoLAgents 🤖",
     page_icon="🤖",
-    layout="wide",
+    layout="wide",  # Use wide layout for better display of content
 )
 
 def initialize_agent(model_type="openai_server", model_config=None):
-    """Initialise l'agent avec les outils et le modèle choisi
+    """Initialize the agent with the specified model and tools.
+    
+    This function creates a SmoLAgents CodeAgent instance with the specified language model
+    and a set of tools that enable various capabilities like web search, file operations,
+    and shell command execution.
     
     Args:
-        model_type: Type de modèle à utiliser ('openai_server', 'hf_api', etc.)
-        model_config: Configuration spécifique au modèle
+        model_type (str): Type of model to use. Options are:
+            - 'openai_server': For OpenAI-compatible API servers (like LMStudio or OpenRouter)
+            - 'hf_api': For Hugging Face API endpoints
+            - 'hf_cloud': For Hugging Face cloud endpoints
+        model_config (dict, optional): Configuration dictionary for the model.
+            If None, default configurations will be used.
+    
+    Returns:
+        CodeAgent: Initialized agent instance, or None if model type is not supported
     """
     
-    # Configuration du modèle en fonction du type choisi
+    # Configure the model based on the selected type
     if model_type == "openai_server":
-        # Configuration par défaut pour OpenAIServerModel
+        # Default configuration for OpenAIServerModel (OpenRouter in this case)
         if model_config is None:
             model_config = {
                 "api_base": "https://openrouter.ai/api/v1",
                 "model_id": "google/gemini-2.0-pro-exp-02-05:free",
-                "api_key": "nop"
+                "api_key": "nop"  # Replace with actual API key in production
             }
         
+        # Initialize OpenAI-compatible model
         model = OpenAIServerModel(
             api_base=model_config["api_base"],
             model_id=model_config["model_id"],
             api_key=model_config["api_key"],
-            max_tokens=12000
+            max_tokens=12000  # Maximum tokens for response generation
         )
     
     elif model_type == "hf_api":
-        # Configuration par défaut pour HfApiModel
+        # Default configuration for local Hugging Face API endpoint
         if model_config is None:
             model_config = {
-                "model_id": "http://192.168.1.141:1234/v1",
+                "model_id": "http://192.168.1.141:1234/v1",  # Local API endpoint
                 "max_new_tokens": 2096,
-                "temperature": 0.5
+                "temperature": 0.5  # Controls randomness (0.0 = deterministic, 1.0 = creative)
             }
         
+        # Initialize Hugging Face API model
         model = HfApiModel(
             model_id=model_config["model_id"],
             max_new_tokens=model_config["max_new_tokens"],
@@ -84,7 +110,7 @@ def initialize_agent(model_type="openai_server", model_config=None):
         )
     
     elif model_type == "hf_cloud":
-        # Configuration pour HfApiModel avec un endpoint cloud
+        # Default configuration for Hugging Face cloud endpoint
         if model_config is None:
             model_config = {
                 "model_id": "https://pflgm2locj2t89co.us-east-1.aws.endpoints.huggingface.cloud",
@@ -92,6 +118,7 @@ def initialize_agent(model_type="openai_server", model_config=None):
                 "temperature": 0.5
             }
         
+        # Initialize Hugging Face cloud model
         model = HfApiModel(
             model_id=model_config["model_id"],
             max_new_tokens=model_config["max_new_tokens"],
@@ -99,10 +126,11 @@ def initialize_agent(model_type="openai_server", model_config=None):
         )
     
     else:
+        # Handle unsupported model types
         st.error(f"Type de modèle non supporté: {model_type}")
         return None
     
-    # Chargement des templates de prompt depuis le fichier YAML
+    # Load prompt templates from YAML file
     try:
         with open("prompts.yaml", 'r') as stream:
             prompt_templates = yaml.safe_load(stream)
@@ -111,67 +139,85 @@ def initialize_agent(model_type="openai_server", model_config=None):
         prompt_templates = None
     
     
-    # Création de l'agent avec les mêmes outils que dans app.py
+    # Create the agent with tools and configuration
     agent = CodeAgent(
         model=model,
         tools=[
-            FinalAnswerTool(), 
-            ValidateFinalAnswer(),
-            DuckDuckGoSearchTool(), 
-            VisitWebpageTool(), 
-            ShellCommandTool(), 
-            CreateFileTool(), 
-            ModifyFileTool()
+            # Core tools for agent functionality
+            FinalAnswerTool(),          # Provides final answers to user queries
+            ValidateFinalAnswer(),      # Validates final answers for quality
+            DuckDuckGoSearchTool(),     # Enables web search capabilities
+            VisitWebpageTool(),         # Allows visiting and extracting content from webpages
+            ShellCommandTool(),         # Enables execution of shell commands
+            CreateFileTool(),           # Allows creation of new files
+            ModifyFileTool()            # Enables modification of existing files
         ],
-        max_steps=20,
-        verbosity_level=1,
-        grammar=None,
-        planning_interval=None,
-        name=None,
-        description=None,
-        prompt_templates=prompt_templates,
+        max_steps=20,                   # Maximum number of reasoning steps
+        verbosity_level=1,              # Level of detail in agent's output
+        grammar=None,                   # Optional grammar for structured output
+        planning_interval=None,         # How often to re-plan (None = no explicit planning)
+        name=None,                      # Agent name
+        description=None,               # Agent description
+        prompt_templates=prompt_templates,  # Custom prompt templates
+        # Additional Python modules the agent is allowed to import in generated code
         additional_authorized_imports=["pandas", "numpy", "matplotlib", "seaborn", "plotly", "requests", "yaml"]
     )
     
     return agent
 
 def format_step_message(step, is_final=False):
-    """Formate les messages de l'agent pour l'affichage dans Streamlit"""
+    """Format agent messages for display in Streamlit.
+    
+    This function processes different types of agent step outputs (model outputs,
+    observations, errors) and formats them for display in the Streamlit interface.
+    
+    Args:
+        step: The agent step object containing output information
+        is_final (bool): Whether this is the final answer step
+    
+    Returns:
+        str: Formatted message ready for display
+    """
     
     if hasattr(step, "model_output") and step.model_output:
-        # Nettoyer et formater la sortie du modèle pour l'affichage
+        # Format the model's output (the agent's thinking or response)
         content = step.model_output.strip()
         if not is_final:
             return content
         else:
+            # Add special formatting for final answers
             return f"**Réponse finale :** {content}"
     
     if hasattr(step, "observations") and step.observations:
-        # Afficher les observations des outils
+        # Format tool observations (results from tool executions)
         return f"**Observations :** {step.observations.strip()}"
     
     if hasattr(step, "error") and step.error:
-        # Afficher les erreurs
-        return f"**Erreur nooo:** {step.error}"
+        # Format any errors that occurred during agent execution
+        return f"**Erreur :** {step.error}"
     
-    # Cas par défaut
+    # Default case - convert step to string
     return str(step)
 
 def process_visualization_request(user_input: str) -> Tuple[bool, Optional[st.delta_generator.DeltaGenerator]]:
     """
     Process a visualization request from the user.
     
+    This function detects if the user is requesting a data visualization,
+    generates appropriate sample data, and creates the requested chart.
+    
     Args:
-        user_input: The user's input message.
+        user_input (str): The user's input message
         
     Returns:
-        A tuple containing:
-        - Boolean indicating if a visualization was processed
-        - The Streamlit delta generator if a visualization was created, None otherwise
+        Tuple[bool, Optional[st.delta_generator.DeltaGenerator]]:
+            - Boolean indicating if a visualization was processed
+            - The Streamlit container if a visualization was created, None otherwise
     """
-    # Detect if this is a visualization request
+    # Use NLP to detect if this is a visualization request and extract details
     viz_info = detect_visualization_request(user_input)
     
+    # If not a visualization request or chart type couldn't be determined, return early
     if not viz_info['is_visualization'] or not viz_info['chart_type']:
         return False, None
     
@@ -180,15 +226,15 @@ def process_visualization_request(user_input: str) -> Tuple[bool, Optional[st.de
     data_description = viz_info['data_description']
     parameters = viz_info['parameters']
     
-    # Generate sample data based on the description and chart type
+    # Generate appropriate sample data based on the description and chart type
     data = generate_sample_data(data_description, chart_type)
     
-    # Set default parameters if not provided
+    # Set default parameters if not provided by the user
     title = parameters.get('title', f"{chart_type.capitalize()} Chart" + (f" of {data_description}" if data_description else ""))
     x_label = parameters.get('x_label', data.columns[0] if len(data.columns) > 0 else "X-Axis")
     y_label = parameters.get('y_label', data.columns[1] if len(data.columns) > 1 else "Y-Axis")
     
-    # Create the appropriate chart
+    # Create the appropriate chart based on the requested type
     fig = None
     if chart_type == 'line':
         fig = create_line_chart(data, title=title, x_label=x_label, y_label=y_label)
@@ -197,6 +243,7 @@ def process_visualization_request(user_input: str) -> Tuple[bool, Optional[st.de
     elif chart_type == 'scatter':
         fig = create_scatter_plot(data, title=title, x_label=x_label, y_label=y_label)
     
+    # If a chart was successfully created, display it
     if fig:
         # Create a container for the visualization
         viz_container = st.container()
@@ -208,63 +255,104 @@ def process_visualization_request(user_input: str) -> Tuple[bool, Optional[st.de
     return False, None
 
 def process_user_input(agent, user_input):
-    """Traite l'entrée utilisateur avec l'agent et renvoie les résultats étape par étape"""
+    """Process user input with the agent and return results step by step.
     
-    # Check if this is a visualization request
+    This function handles the execution of the agent with the user's input,
+    displays the agent's thinking process in real-time, and returns the final result.
+    It also handles visualization requests by integrating with the visualization system.
+    
+    Args:
+        agent: The initialized SmoLAgents agent instance
+        user_input (str): The user's query or instruction
+        
+    Returns:
+        tuple or None: A tuple containing the final answer and a boolean flag,
+                      or None if an error occurred
+    """
+    
+    # First check if this is a visualization request
     is_viz_request, viz_container = process_visualization_request(user_input)
     
-    # If it's a visualization request, we'll still run the agent but we've already displayed the chart
+    # Even for visualization requests, we still run the agent to provide context and explanation
     
-    # Vérification de la connexion au serveur LLM
+    # Execute the agent and handle any exceptions
     try:
-        # Exécution de l'agent et capture des étapes
+        # Show a spinner while the agent is thinking
         with st.spinner("L'agent réfléchit..."):
-            # Placeholder pour la sortie de l'agent
+            # Create a container for the agent's output
             response_container = st.container()
             
-            # Exécution de l'agent et capture des étapes
+            # Initialize variables to track steps and final result
             steps = []
             final_step = None
             
+            # Display the agent's thinking process in real-time
             with response_container:
                 step_container = st.empty()
                 step_text = ""
                 
-                # Exécute l'agent et capture les étapes de manière incrémentale
+                # Execute the agent and stream results incrementally
                 for step in agent.run(user_input, stream=True):
                     steps.append(step)
                     
-                    # Mettre à jour l'affichage des étapes
+                    # Format the current step for display
                     step_number = f"Étape {step.step_number}" if hasattr(step, "step_number") and step.step_number is not None else ""
                     step_content = format_step_message(step)
                     
-                    # Ajouter au texte des étapes
+                    # Build the cumulative step text
                     if step_number:
                         step_text += f"### {step_number}\n\n"
                     step_text += f"{step_content}\n\n---\n\n"
                     
-                    # Mettre à jour l'affichage
-                    step_container.markdown(step_text)
+                    # Update the display with the latest step information
+                    # step_container.markdown(step_text)
                     
-                    # Conserver la dernière étape pour la réponse finale
+                    # Keep track of the final step for the response
                     final_step = step
                 
-                # Afficher la réponse finale
+                # Process and return the final answer
                 if final_step:
                     final_answer = format_step_message(final_step, is_final=True)
                     
-                    # If this was a visualization request, add a note about the visualization
+                    # If this was a visualization request, add a note about it
                     if is_viz_request:
                         final_answer += "\n\n*Une visualisation a été générée en fonction de votre demande.*"
                     
+                    # Return the final answer with a flag indicating success
                     return (final_answer, True)
             
+            # If we somehow exit the loop without a final step
             return final_step
+            
     except Exception as e:
+        # Handle any errors that occur during agent execution
         st.error(f"Erreur lors de l'exécution de l'agent: {str(e)}")
         return None
+    
+@st.fragment
+def launch_app(code_to_launch):
+    """Execute code within a Streamlit fragment to prevent page reloads.
+    
+    This function is decorated with @st.fragment to ensure that only this specific
+    part of the UI is updated when code is executed, without reloading the entire page.
+    This is particularly useful for executing code generated by the agent.
+    
+    Args:
+        code_to_launch (str): Python code string to be executed
+    """
+    with st.container(border = True):
+        # Execute the code within a bordered container for visual separation
+        exec(code_to_launch)
+    return
 
 def main():
+    """Main application entry point.
+    
+    This function sets up the Streamlit interface, initializes the agent,
+    manages the conversation history, and handles user interactions.
+    It's the central orchestrator of the application's functionality.
+    """
+    # Set up the main page title and welcome message
     st.title("Agent Conversationnel SmoLAgents 🤖")
     
     st.markdown("""
@@ -272,11 +360,11 @@ def main():
     Posez vos questions ci-dessous.
     """)
     
-    # Sidebar pour la configuration du modèle
+    # Set up the sidebar for model configuration
     with st.sidebar:
         st.title("Configuration du Modèle")
         
-        # Sélectionner le type de modèle
+        # Model type selection dropdown
         model_type = st.selectbox(
             "Type de modèle",
             ["openai_server", "hf_api", "hf_cloud"],
@@ -284,35 +372,41 @@ def main():
             help="Choisissez le type de modèle à utiliser avec l'agent"
         )
         
-        # Configuration spécifique en fonction du type de modèle
+        # Initialize empty configuration dictionary
         model_config = {}
         
+        # Dynamic configuration UI based on selected model type
         if model_type == "openai_server":
             st.subheader("Configuration OpenAI Server")
+            # OpenAI-compatible server URL (OpenRouter, LMStudio, etc.)
             model_config["api_base"] = st.text_input(
                 "URL du serveur",
                 value="https://openrouter.ai/api/v1",
                 help="Adresse du serveur OpenAI compatible"
             )
+            # Model ID to use with the server
             model_config["model_id"] = st.text_input(
                 "ID du modèle",
                 value="google/gemini-2.0-pro-exp-02-05:free",
                 help="Identifiant du modèle local"
             )
+            # API key for authentication
             model_config["api_key"] = st.text_input(
                 "Clé API",
-                value="nop",
+                value=os.getenv("OPEN_ROUTER_TOKEN") or "dummy",
                 type="password",
                 help="Clé API pour le serveur (dummy pour LMStudio)"
             )
         
         elif model_type == "hf_api":
             st.subheader("Configuration Hugging Face API")
+            # Hugging Face API endpoint URL
             model_config["model_id"] = st.text_input(
                 "URL du modèle",
                 value="http://192.168.1.141:1234/v1",
                 help="URL du modèle ou endpoint"
             )
+            # Maximum tokens to generate in responses
             model_config["max_new_tokens"] = st.slider(
                 "Tokens maximum",
                 min_value=512,
@@ -320,6 +414,7 @@ def main():
                 value=2096,
                 help="Nombre maximum de tokens à générer"
             )
+            # Temperature controls randomness in generation
             model_config["temperature"] = st.slider(
                 "Température",
                 min_value=0.1,
@@ -331,11 +426,13 @@ def main():
         
         elif model_type == "hf_cloud":
             st.subheader("Configuration Hugging Face Cloud")
+            # Hugging Face cloud endpoint URL
             model_config["model_id"] = st.text_input(
                 "URL du endpoint cloud",
                 value="https://pflgm2locj2t89co.us-east-1.aws.endpoints.huggingface.cloud",
                 help="URL de l'endpoint cloud Hugging Face"
             )
+            # Maximum tokens to generate in responses
             model_config["max_new_tokens"] = st.slider(
                 "Tokens maximum",
                 min_value=512,
@@ -343,6 +440,7 @@ def main():
                 value=2096,
                 help="Nombre maximum de tokens à générer"
             )
+            # Temperature controls randomness in generation
             model_config["temperature"] = st.slider(
                 "Température",
                 min_value=0.1,
@@ -352,16 +450,18 @@ def main():
                 help="Température pour la génération (plus élevée = plus créatif)"
             )
         
-        # Bouton pour réinitialiser l'agent avec la nouvelle configuration
+        # Button to apply configuration changes and reinitialize the agent
         if st.button("Appliquer la configuration"):
             with st.spinner("Initialisation de l'agent avec le nouveau modèle..."):
                 st.session_state.agent = initialize_agent(model_type, model_config)
                 st.success("✅ Configuration appliquée avec succès!")
     
-    # Vérifier la connexion au serveur
+    # Check server connection for OpenAI server type
     if model_type == "openai_server":
+        # Extract base URL for health check
         llm_api_url = model_config["api_base"].split("/v1")[0]
         try:
+            # Attempt to connect to the server's health endpoint
             import requests
             response = requests.get(f"{llm_api_url}/health", timeout=2)
             if response.status_code == 200:
@@ -371,121 +471,56 @@ def main():
         except Exception:
             st.error("❌ Impossible de se connecter au serveur LLM. Vérifiez que le serveur est en cours d'exécution à l'adresse spécifiée.")
     
-    # Initialisation de l'agent si ce n'est pas déjà fait
+    # Initialize the agent if not already in session state
     if "agent" not in st.session_state:
         with st.spinner("Initialisation de l'agent..."):
             st.session_state.agent = initialize_agent(model_type, model_config)
     
-    # Initialisation de l'historique de conversation
+    # Initialize conversation history if not already in session state
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {"role": "assistant", "content": "Bonjour! Comment puis-je vous aider aujourd'hui?"}
         ]
     
-    # Affichage de l'historique des messages
+    # Display conversation history
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
     
-    # Zone de saisie utilisateur
+    # User input area
     if prompt := st.chat_input("Posez votre question..."):
-        # Ajouter la question de l'utilisateur à l'historique
+        # Add user question to conversation history
         st.session_state.messages.append({"role": "user", "content": prompt})
         
-        # Afficher la question de l'utilisateur
+        # Display user question
         with st.chat_message("user"):
             st.markdown(prompt)
         
-        # Traiter la demande avec l'agent
+        # Process user input with the agent and display response
         with st.chat_message("assistant"):
+            # Get response from agent
             response = process_user_input(st.session_state.agent, prompt)
-            if response is not None and  response[1] == True:
-                with st.container(border = True):
-                    def secure_imports(code_str):
-                        """
-                        Process Python code to replace import statements with exec-wrapped versions.
-                        
-                        Args:
-                            code_str (str): The Python code string to process
-                            
-                        Returns:
-                            str: The processed code with import statements wrapped in exec()
-                        """
-                        import re
-                        
-                        # Define regex patterns for both import styles
-                        # Pattern for 'import module' and 'import module as alias'
-                        import_pattern = r'^(\s*)import\s+([^\n]+)'
-                        
-                        # Pattern for 'from module import something'
-                        from_import_pattern = r'^(\s*)from\s+([^\n]+)\s+import\s+([^\n]+)'
-                        
-                        lines = code_str.split('\n')
-                        result_lines = []
-                        
-                        i = 0
-                        while i < len(lines):
-                            line = lines[i]
-                            
-                            # Check for multiline imports with parentheses
-                            if re.search(r'import\s+\(', line) or re.search(r'from\s+.+\s+import\s+\(', line):
-                                # Collect all lines until closing parenthesis
-                                start_line = i
-                                multiline_import = [line]
-                                i += 1
-                                
-                                while i < len(lines) and ')' not in lines[i]:
-                                    multiline_import.append(lines[i])
-                                    i += 1
-                                    
-                                if i < len(lines):  # Add the closing line with parenthesis
-                                    multiline_import.append(lines[i])
-                                    
-                                # Join the multiline import and wrap it with exec
-                                indentation = re.match(r'^(\s*)', multiline_import[0]).group(1)
-                                multiline_str = '\n'.join(multiline_import)
-                                result_lines.append(f'{indentation}exec("""\n{multiline_str}\n""")')
-                                
-                            else:
-                                # Handle single line imports
-                                import_match = re.match(import_pattern, line)
-                                from_import_match = re.match(from_import_pattern, line)
-                                
-                                if import_match:
-                                    indentation = import_match.group(1)
-                                    import_stmt = line[len(indentation):]  # Remove indentation from statement
-                                    result_lines.append(f'{indentation}exec("{import_stmt}")')
-                                    
-                                elif from_import_match:
-                                    indentation = from_import_match.group(1)
-                                    from_import_stmt = line[len(indentation):]  # Remove indentation from statement
-                                    result_lines.append(f'{indentation}exec("{from_import_stmt}")')
-                                    
-                                else:
-                                    # Not an import statement, keep as is
-                                    result_lines.append(line)
-                            
-                            i += 1
-                            
-                        return '\n'.join(result_lines)
-
-                    # Process response[0] to secure import statements
-                    # processed_response = secure_imports(response[0])
-                    # eval(processed_response)
-                    exec(response[0])
+            
+            # If response contains executable code, run it in a fragment
+            if response is not None and response[1] == True:
+                launch_app(response[0])
+                    
+            # Add agent's response to conversation history
             if response and hasattr(response, "model_output"):
-                # Ajouter la réponse à l'historique
                 st.session_state.messages.append({"role": "assistant", "content": response.model_output})
     
-    # Bouton pour effacer l'historique
+    # Button to clear conversation history and start a new chat
     if st.sidebar.button("Nouvelle conversation"):
+        # Reset conversation to initial greeting
         st.session_state.messages = [
             {"role": "assistant", "content": "Bonjour! Comment puis-je vous aider aujourd'hui?"}
         ]
+        # Reload the page to reset the UI
         st.rerun()
     
-    # Afficher des informations supplémentaires dans la barre latérale
+    # Additional information and features in the sidebar
     with st.sidebar:
+        # About section with information about the agent
         st.title("À propos de cet agent")
         st.markdown("""
         Cet agent utilise SmoLAgents pour se connecter à un modèle de langage hébergé localement.
@@ -505,7 +540,7 @@ def main():
         - Assurez-vous que toutes les dépendances sont installées via `pip install -r requirements.txt`.
         """)
         
-        # Section pour les visualisations
+        # Visualization examples section
         st.subheader("Visualisations")
         st.markdown("""
         Vous pouvez demander des visualisations en utilisant des phrases comme:
@@ -516,13 +551,15 @@ def main():
         L'agent détectera automatiquement votre demande et générera une visualisation appropriée.
         """)
         
-        # Afficher l'heure actuelle dans différents fuseaux horaires
+        # Current time display in different timezones
         st.subheader("Heure actuelle")
+        # Timezone selection dropdown
         selected_timezone = st.selectbox(
             "Choisissez un fuseau horaire",
             ["Europe/Paris", "America/New_York", "Asia/Tokyo", "Australia/Sydney"]
         )
         
+        # Get and display current time in selected timezone
         tz = pytz.timezone(selected_timezone)
         local_time = datetime.datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
         st.write(f"L'heure actuelle à {selected_timezone} est: {local_time}")
