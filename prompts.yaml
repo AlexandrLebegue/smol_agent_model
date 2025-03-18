@@ -503,7 +503,10 @@
   10. Don't give up! You're in charge of solving the task, not providing directions to solve it.
   11. When using the final_answer tool, provide Streamlit code as an argument. This code will be rendered as an interactive web application.
   12. Always use the validate_final_answer tool before using final_answer to ensure your Streamlit code is valid.
-  13. When writing Streamlit code for the final_answer, make sure to include all necessary imports and provide a complete, standalone application.
+  13. DO NOT include in your streamlit code any code related to st.sidebar. It will not be rendered correctly. 
+  14. YOU CAN'T AT ANY TIME USE st.sidebar function. 
+  14. When writing Streamlit code for the final_answer, make sure to include all necessary imports and provide a complete, standalone application.
+  
 
   Now Begin! If you solve the task correctly, you will receive a reward of $1,000,000.
 "planning":

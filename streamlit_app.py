@@ -51,7 +51,7 @@ from visualizations import (
 
 # Configure Streamlit page settings
 st.set_page_config(
-    page_title="Agent Conversationnel SmoLAgents 🤖",
+    page_title="Streamlit generator 🤖",
     page_icon="🤖",
     layout="wide",  # Use wide layout for better display of content
 )
@@ -77,14 +77,7 @@ def initialize_agent(model_type="openai_server", model_config=None):
     
     # Configure the model based on the selected type
     if model_type == "openai_server":
-        # Default configuration for OpenAIServerModel (OpenRouter in this case)
-        if model_config is None:
-            model_config = {
-                "api_base": "https://openrouter.ai/api/v1",
-                "model_id": "google/gemini-2.0-pro-exp-02-05:free",
-                "api_key": "nop"  # Replace with actual API key in production
-            }
-        
+                
         # Initialize OpenAI-compatible model
         model = OpenAIServerModel(
             api_base=model_config["api_base"],
@@ -148,9 +141,9 @@ def initialize_agent(model_type="openai_server", model_config=None):
             ValidateFinalAnswer(),      # Validates final answers for quality
             DuckDuckGoSearchTool(),     # Enables web search capabilities
             VisitWebpageTool(),         # Allows visiting and extracting content from webpages
-            ShellCommandTool(),         # Enables execution of shell commands
-            CreateFileTool(),           # Allows creation of new files
-            ModifyFileTool()            # Enables modification of existing files
+            # ShellCommandTool(),         # Enables execution of shell commands
+            # CreateFileTool(),           # Allows creation of new files
+            # ModifyFileTool()            # Enables modification of existing files
         ],
         max_steps=20,                   # Maximum number of reasoning steps
         verbosity_level=1,              # Level of detail in agent's output
@@ -160,7 +153,7 @@ def initialize_agent(model_type="openai_server", model_config=None):
         description=None,               # Agent description
         prompt_templates=prompt_templates,  # Custom prompt templates
         # Additional Python modules the agent is allowed to import in generated code
-        additional_authorized_imports=["pandas", "numpy", "matplotlib", "seaborn", "plotly", "requests", "yaml"]
+        additional_authorized_imports=["pandas", "numpy", "matplotlib", "seaborn", "plotly", "requests", "yaml", "yfinance", "datetime", "pytz"]
     )
     
     return agent
@@ -341,8 +334,16 @@ def launch_app(code_to_launch):
         code_to_launch (str): Python code string to be executed
     """
     with st.container(border = True):
-        # Execute the code within a bordered container for visual separation
-        exec(code_to_launch)
+        app_tab, source_tab = st.tabs(["Application", "Code source"])
+        with app_tab:
+            # Execute the code within a bordered container for visual separation
+            exec(code_to_launch)
+        with source_tab:
+            # Display the generated code for reference
+            st.code(code_to_launch, language="python")
+            st.info("Pour mettre en ligne votre application suivre le lien suivant : [Export Streamlit App](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app)")
+
+        
     return
 
 def main():
@@ -353,7 +354,7 @@ def main():
     It's the central orchestrator of the application's functionality.
     """
     # Set up the main page title and welcome message
-    st.title("Agent Conversationnel SmoLAgents 🤖")
+    st.title("🤖 Streamlit generator")
     
     st.markdown("""
     Bienvenue! Cet agent utilise SmoLAgents pour se connecter à un modèle de langage.
@@ -362,99 +363,109 @@ def main():
     
     # Set up the sidebar for model configuration
     with st.sidebar:
-        st.title("Configuration du Modèle")
+        # Display the application icon
+        st.title("🤖 Streamlit generator")
+        # st.image("ico.webp", width=100, caption="SmoLAgents Icon")
         
-        # Model type selection dropdown
-        model_type = st.selectbox(
-            "Type de modèle",
-            ["openai_server", "hf_api", "hf_cloud"],
-            index=0,
-            help="Choisissez le type de modèle à utiliser avec l'agent"
-        )
-        
-        # Initialize empty configuration dictionary
-        model_config = {}
-        
-        # Dynamic configuration UI based on selected model type
-        if model_type == "openai_server":
-            st.subheader("Configuration OpenAI Server")
-            # OpenAI-compatible server URL (OpenRouter, LMStudio, etc.)
-            model_config["api_base"] = st.text_input(
-                "URL du serveur",
-                value="https://openrouter.ai/api/v1",
-                help="Adresse du serveur OpenAI compatible"
+        with st.expander("🛠️ Configuration du Modèle", expanded=True):  
+            # Model type selection dropdown
+            model_type = st.selectbox(
+                "Type de modèle",
+                ["Par défaut", "openai_server", "hf_api", "hf_cloud"],
+                index=0,
+                help="Choisissez le type de modèle à utiliser avec l'agent"
             )
-            # Model ID to use with the server
-            model_config["model_id"] = st.text_input(
-                "ID du modèle",
-                value="google/gemini-2.0-pro-exp-02-05:free",
-                help="Identifiant du modèle local"
-            )
-            # API key for authentication
-            model_config["api_key"] = st.text_input(
-                "Clé API",
-                value=os.getenv("OPEN_ROUTER_TOKEN") or "dummy",
-                type="password",
-                help="Clé API pour le serveur (dummy pour LMStudio)"
-            )
-        
-        elif model_type == "hf_api":
-            st.subheader("Configuration Hugging Face API")
-            # Hugging Face API endpoint URL
-            model_config["model_id"] = st.text_input(
-                "URL du modèle",
-                value="http://192.168.1.141:1234/v1",
-                help="URL du modèle ou endpoint"
-            )
-            # Maximum tokens to generate in responses
-            model_config["max_new_tokens"] = st.slider(
-                "Tokens maximum",
-                min_value=512,
-                max_value=4096,
-                value=2096,
-                help="Nombre maximum de tokens à générer"
-            )
-            # Temperature controls randomness in generation
-            model_config["temperature"] = st.slider(
-                "Température",
-                min_value=0.1,
-                max_value=1.0,
-                value=0.5,
-                step=0.1,
-                help="Température pour la génération (plus élevée = plus créatif)"
-            )
-        
-        elif model_type == "hf_cloud":
-            st.subheader("Configuration Hugging Face Cloud")
-            # Hugging Face cloud endpoint URL
-            model_config["model_id"] = st.text_input(
-                "URL du endpoint cloud",
-                value="https://pflgm2locj2t89co.us-east-1.aws.endpoints.huggingface.cloud",
-                help="URL de l'endpoint cloud Hugging Face"
-            )
-            # Maximum tokens to generate in responses
-            model_config["max_new_tokens"] = st.slider(
-                "Tokens maximum",
-                min_value=512,
-                max_value=4096,
-                value=2096,
-                help="Nombre maximum de tokens à générer"
-            )
-            # Temperature controls randomness in generation
-            model_config["temperature"] = st.slider(
-                "Température",
-                min_value=0.1,
-                max_value=1.0,
-                value=0.5,
-                step=0.1,
-                help="Température pour la génération (plus élevée = plus créatif)"
-            )
-        
-        # Button to apply configuration changes and reinitialize the agent
-        if st.button("Appliquer la configuration"):
-            with st.spinner("Initialisation de l'agent avec le nouveau modèle..."):
-                st.session_state.agent = initialize_agent(model_type, model_config)
-                st.success("✅ Configuration appliquée avec succès!")
+            
+            # Initialize empty configuration dictionary
+            model_config = {}
+            if model_type == "Par défaut":
+                st.success("Modèle par défaut 🟢")
+                
+                model_config["api_base"] = "https://generativelanguage.googleapis.com/v1beta/openai/"
+                model_config["model_id"] = "gemini-2.0-pro-exp-02-05"
+                model_config["api_key"] = st.secrets["API_GEMINI_KEY"] #os.getenv("OPEN_ROUTER_TOKEN") or "dummy",
+                model_type = "openai_server"
+
+            # Dynamic configuration UI based on selected model type
+            elif model_type == "openai_server":
+                st.subheader("Configuration OpenAI Server")
+                # OpenAI-compatible server URL (OpenRouter, LMStudio, etc.)
+                model_config["api_base"] = st.text_input(
+                    "URL du serveur",
+                    value="https://openrouter.ai/api/v1",
+                    help="Adresse du serveur OpenAI compatible"
+                )
+                # Model ID to use with the server
+                model_config["model_id"] = st.text_input(
+                    "ID du modèle",
+                    value="google/gemini-2.0-pro-exp-02-05:free",
+                    help="Identifiant du modèle local"
+                )
+                # API key for authentication
+                model_config["api_key"] = st.text_input(
+                    "Clé API",
+                    value=os.getenv("OPEN_ROUTER_TOKEN") or "dummy",
+                    type="password",
+                    help="Clé API pour le serveur (dummy pour LMStudio)"
+                )
+            
+            elif model_type == "hf_api":
+                st.subheader("Configuration Hugging Face API")
+                # Hugging Face API endpoint URL
+                model_config["model_id"] = st.text_input(
+                    "URL du modèle",
+                    value="http://192.168.1.141:1234/v1",
+                    help="URL du modèle ou endpoint"
+                )
+                # Maximum tokens to generate in responses
+                model_config["max_new_tokens"] = st.slider(
+                    "Tokens maximum",
+                    min_value=512,
+                    max_value=4096,
+                    value=2096,
+                    help="Nombre maximum de tokens à générer"
+                )
+                # Temperature controls randomness in generation
+                model_config["temperature"] = st.slider(
+                    "Température",
+                    min_value=0.1,
+                    max_value=1.0,
+                    value=0.5,
+                    step=0.1,
+                    help="Température pour la génération (plus élevée = plus créatif)"
+                )
+            
+            elif model_type == "hf_cloud":
+                st.subheader("Configuration Hugging Face Cloud")
+                # Hugging Face cloud endpoint URL
+                model_config["model_id"] = st.text_input(
+                    "URL du endpoint cloud",
+                    value="https://pflgm2locj2t89co.us-east-1.aws.endpoints.huggingface.cloud",
+                    help="URL de l'endpoint cloud Hugging Face"
+                )
+                # Maximum tokens to generate in responses
+                model_config["max_new_tokens"] = st.slider(
+                    "Tokens maximum",
+                    min_value=512,
+                    max_value=4096,
+                    value=2096,
+                    help="Nombre maximum de tokens à générer"
+                )
+                # Temperature controls randomness in generation
+                model_config["temperature"] = st.slider(
+                    "Température",
+                    min_value=0.1,
+                    max_value=1.0,
+                    value=0.5,
+                    step=0.1,
+                    help="Température pour la génération (plus élevée = plus créatif)"
+                )
+            
+            # Button to apply configuration changes and reinitialize the agent
+            if st.button("Appliquer la configuration"):
+                with st.spinner("Initialisation de l'agent avec le nouveau modèle..."):
+                    st.session_state.agent = initialize_agent(model_type, model_config)
+                    st.success("✅ Configuration appliquée avec succès!")
     
     # Check server connection for OpenAI server type
     if model_type == "openai_server":
@@ -464,10 +475,8 @@ def main():
             # Attempt to connect to the server's health endpoint
             import requests
             response = requests.get(f"{llm_api_url}/health", timeout=2)
-            if response.status_code == 200:
+            if response:
                 st.success("✅ Connexion au serveur LLM établie")
-            else:
-                st.warning("⚠️ Le serveur LLM est accessible mais renvoie un statut non-OK")
         except Exception:
             st.error("❌ Impossible de se connecter au serveur LLM. Vérifiez que le serveur est en cours d'exécution à l'adresse spécifiée.")
     
@@ -509,60 +518,44 @@ def main():
             if response and hasattr(response, "model_output"):
                 st.session_state.messages.append({"role": "assistant", "content": response.model_output})
     
-    # Button to clear conversation history and start a new chat
-    if st.sidebar.button("Nouvelle conversation"):
-        # Reset conversation to initial greeting
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Bonjour! Comment puis-je vous aider aujourd'hui?"}
-        ]
-        # Reload the page to reset the UI
-        st.rerun()
+   
+    # Additional information and features in the sidebar
+    with st.sidebar:
+        with st.container(border = True):
+            st.markdown(f"🤖 Modèle sélectionné: \n\n `{model_config["model_id"]}`")
+            # Button to clear conversation history and start a new chat
+            if st.button("Nouvelle conversation"):
+                # Reset conversation to initial greeting
+                st.session_state.messages = [
+                    {"role": "assistant", "content": "Bonjour! Comment puis-je vous aider aujourd'hui?"}
+                ]
+                # Reload the page to reset the UI
+                st.rerun()
     
     # Additional information and features in the sidebar
     with st.sidebar:
-        # About section with information about the agent
-        st.title("À propos de cet agent")
-        st.markdown("""
-        Cet agent utilise SmoLAgents pour se connecter à un modèle de langage hébergé localement.
-        
-        ### Outils disponibles
-        - Recherche web (DuckDuckGo)
-        - Visite de pages web
-        - Exécution de commandes shell
-        - Création et modification de fichiers
-        - Visualisations de données (nouveauté!)
-        
-        ### Configuration
-        Utilisez les options ci-dessus pour configurer le modèle de langage.
-        
-        ### Problèmes courants
-        - Si l'agent ne répond pas, vérifiez que le serveur LLM est en cours d'exécution et accessible.
-        - Assurez-vous que toutes les dépendances sont installées via `pip install -r requirements.txt`.
-        """)
-        
-        # Visualization examples section
-        st.subheader("Visualisations")
-        st.markdown("""
-        Vous pouvez demander des visualisations en utilisant des phrases comme:
-        - "Montre-moi un graphique en ligne des températures"
-        - "Crée un diagramme à barres des ventes par région"
-        - "Affiche un nuage de points de l'âge vs revenu"
-        
-        L'agent détectera automatiquement votre demande et générera une visualisation appropriée.
-        """)
-        
-        # Current time display in different timezones
-        st.subheader("Heure actuelle")
-        # Timezone selection dropdown
-        selected_timezone = st.selectbox(
-            "Choisissez un fuseau horaire",
-            ["Europe/Paris", "America/New_York", "Asia/Tokyo", "Australia/Sydney"]
-        )
-        
-        # Get and display current time in selected timezone
-        tz = pytz.timezone(selected_timezone)
-        local_time = datetime.datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-        st.write(f"L'heure actuelle à {selected_timezone} est: {local_time}")
+        with st.container(border = True):
+
+            # About section with information about the agent
+            st.title("❓ À propos")
+            st.markdown("""
+            
+            Cet agent utilise la librairie SmoLAgents pour vous aider à générer l'application streamlit de vos rêves ✨.          
+            
+            Essayer par vous même ! Vous pouvez demander des visualisations en utilisant des phrases comme:
+            - "Montre-moi un graphique en ligne des températures"
+            - "Crée un diagramme à barres des ventes par région"
+            - "Affiche un nuage de points de l'âge vs revenu"
+            
+            L'agent détectera automatiquement votre demande et générera une visualisation appropriée.
+            """)
+        with st.container(border = True):
+            st.title("🚧 Aide 🚧")
+            st.markdown("""
+                - Si l'agent ne répond pas, vérifiez que l'agent est bien connecté.
+                - Assurez-vous qu'il vous reste suffisamment de crédit si vous utilisez un agent personnalisé !
+                - Essayer de générer une application moins complexe ou d'améliorer votre prompt.""")
+            
 
 if __name__ == "__main__":
     main() 
