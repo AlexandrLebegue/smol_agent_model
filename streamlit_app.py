@@ -337,7 +337,11 @@ def launch_app(code_to_launch):
         app_tab, source_tab = st.tabs(["Application", "Code source"])
         with app_tab:
             # Execute the code within a bordered container for visual separation
-            exec(code_to_launch)
+            try:
+                exec(code_to_launch)
+            except:
+                st.error("Erreur lors de l'exécution du code généré... Le robot a du faire une erreur ou est surchargé 🤖, réessayer plus tard ou avec une demande moins complexe ! ")
+            
         with source_tab:
             # Display the generated code for reference
             st.code(code_to_launch, language="python")
@@ -488,13 +492,20 @@ def main():
     # Initialize conversation history if not already in session state
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Bonjour! Comment puis-je vous aider aujourd'hui?"}
+            {"role": "assistant", "content": "Bonjour! Comment puis-je vous aider aujourd'hui?", "is_code" : False}
         ]
     
     # Display conversation history
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+            if message["role"] == "assistant":
+                if message["is_code"]:
+                    launch_app(message["content"])
+                else:
+                    st.markdown(message["content"])   
+            elif message["role"] == "user":
+                st.markdown(message["content"])
+                
     
     # User input area
     if prompt := st.chat_input("Posez votre question..."):
@@ -510,13 +521,18 @@ def main():
             # Get response from agent
             response = process_user_input(st.session_state.agent, prompt)
             
-            # If response contains executable code, run it in a fragment
+            # Add agent's response to conversation history if valid
             if response is not None and response[1] == True:
+                st.session_state.messages.append({"role": "assistant", "content": response[0], "is_code" : True})
+                # If response contains executable code, run it in a fragment
+               
                 launch_app(response[0])
+                
+            else:
+                st.session_state.messages.append({"role": "assistant", "content": "Désolé, une erreur a du se produire... Essayez avec une idée moins complexe !", "is_code" : False})
+
                     
-            # Add agent's response to conversation history
-            if response and hasattr(response, "model_output"):
-                st.session_state.messages.append({"role": "assistant", "content": response.model_output})
+            
     
    
     # Additional information and features in the sidebar
@@ -527,7 +543,7 @@ def main():
             if st.button("Nouvelle conversation"):
                 # Reset conversation to initial greeting
                 st.session_state.messages = [
-                    {"role": "assistant", "content": "Bonjour! Comment puis-je vous aider aujourd'hui?"}
+                    {"role": "assistant", "content": "Bonjour! Comment puis-je vous aider aujourd'hui?", "is_code" : False}
                 ]
                 # Reload the page to reset the UI
                 st.rerun()
