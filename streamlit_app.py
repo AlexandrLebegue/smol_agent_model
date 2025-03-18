@@ -34,9 +34,9 @@ from tools.shell_tool import ShellCommandTool
 from tools.create_file_tool import CreateFileTool
 from tools.modify_file_tool import ModifyFileTool
 
-# Telemetry imports (currently disabled)
-from phoenix.otel import register
-from openinference.instrumentation.smolagents import SmolagentsInstrumentor
+# # Telemetry imports (currently disabled)
+# from phoenix.otel import register
+# from openinference.instrumentation.smolagents import SmolagentsInstrumentor
 # register()
 # SmolagentsInstrumentor().instrument()
 
