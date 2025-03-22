@@ -33,7 +33,6 @@ from tools.web_search import DuckDuckGoSearchTool
 from tools.shell_tool import ShellCommandTool
 from tools.create_file_tool import CreateFileTool
 from tools.modify_file_tool import ModifyFileTool
-
 # # Telemetry imports (currently disabled)
 # from phoenix.otel import register
 # from openinference.instrumentation.smolagents import SmolagentsInstrumentor
@@ -56,7 +55,7 @@ st.set_page_config(
     layout="wide",  # Use wide layout for better display of content
 )
 
-def initialize_agent(model_type="openai_server", model_config=None):
+def initialize_agent(model_type="openai_server", model_config=None, max_steps=10):
     """Initialize the agent with the specified model and tools.
     
     This function creates a SmoLAgents CodeAgent instance with the specified language model
@@ -70,6 +69,8 @@ def initialize_agent(model_type="openai_server", model_config=None):
             - 'hf_cloud': For Hugging Face cloud endpoints
         model_config (dict, optional): Configuration dictionary for the model.
             If None, default configurations will be used.
+        max_steps (int, optional): Maximum number of reasoning steps for the agent.
+            Default is 10.
     
     Returns:
         CodeAgent: Initialized agent instance, or None if model type is not supported
@@ -145,7 +146,7 @@ def initialize_agent(model_type="openai_server", model_config=None):
             # CreateFileTool(),           # Allows creation of new files
             # ModifyFileTool()            # Enables modification of existing files
         ],
-        max_steps=5,                   # Maximum number of reasoning steps
+        max_steps=max_steps,           # Maximum number of reasoning steps
         verbosity_level=1,              # Level of detail in agent's output
         grammar=None,                   # Optional grammar for structured output
         planning_interval=None,         # How often to re-plan (None = no explicit planning)
@@ -283,24 +284,33 @@ def process_user_input(agent, user_input):
             with response_container:
                 step_container = st.empty()
                 step_text = ""
+                # Get the maximum steps from the agent
+                max_steps = agent.max_steps
                 
                 # Execute the agent and stream results incrementally
                 for step in agent.run(user_input, stream=True):
                     steps.append(step)
                     
                     # Format the current step for display
-                    step_number = f"Étape {step.step_number}" if hasattr(step, "step_number") and step.step_number is not None else ""
+                    current_step_num = step.step_number if hasattr(step, "step_number") and step.step_number is not None else 0
+                    step_number = f"Étape {current_step_num}" if current_step_num else ""
                     step_content = format_step_message(step)
                     
-                    # Build the cumulative step text
+                    # Add a gray progress indicator
+                    progress_indicator = f"<span style='color:gray; font-size:0.8em;'>Progression: Étape {current_step_num} sur {max_steps} maximum</span>"
+                    
+                    # # Build the cumulative step text
                     if step_number:
-                        step_text += f"### {step_number}\n\n"
-                    step_text += f"{step_content}\n\n---\n\n"
+                        step_text += f"{progress_indicator}\n\n"
+                    # else:
+                    #     step_text += f"{progress_indicator}\n\n"
+                    # step_text += f"{step_content}\n\n---\n\n"
                     
                     # Update the display with the latest step information
-                    # step_container.markdown(step_text)
+                    step_container.markdown(step_text, unsafe_allow_html=True)
                     
                     # Keep track of the final step for the response
+                    final_step = step
                     final_step = step
                 
                 # Process and return the final answer
@@ -345,6 +355,7 @@ def launch_app(code_to_launch):
         with source_tab:
             # Display the generated code for reference
             st.code(code_to_launch, language="python")
+            st.download_button("Télécharger le code", str(code_to_launch), "generated_code.py",  help="Télécharger le code généré")
             st.info("Pour mettre en ligne votre application suivre le lien suivant : [Export Streamlit App](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app)")
 
         
@@ -371,13 +382,22 @@ def main():
         st.title("🤖 Streamlit generator")
         # st.image("ico.webp", width=100, caption="SmoLAgents Icon")
         
-        with st.expander("🛠️ Configuration du Modèle", expanded=True):  
+        with st.expander("🛠️ Configuration du Modèle", expanded=True):
             # Model type selection dropdown
             model_type = st.selectbox(
                 "Type de modèle",
                 ["Par défaut", "openai_server", "hf_api", "hf_cloud"],
                 index=0,
                 help="Choisissez le type de modèle à utiliser avec l'agent"
+            )
+            
+            # Configure maximum steps for the agent
+            max_steps = st.slider(
+                "Nombre maximum d'étapes",
+                min_value=1,
+                max_value=20,
+                value=10,
+                help="Nombre maximum d'étapes de raisonnement pour l'agent"
             )
             
             # Initialize empty configuration dictionary
@@ -468,7 +488,7 @@ def main():
             # Button to apply configuration changes and reinitialize the agent
             if st.button("Appliquer la configuration"):
                 with st.spinner("Initialisation de l'agent avec le nouveau modèle..."):
-                    st.session_state.agent = initialize_agent(model_type, model_config)
+                    st.session_state.agent = initialize_agent(model_type, model_config, max_steps)
                     st.success("✅ Configuration appliquée avec succès!")
     
     # Check server connection for OpenAI server type
@@ -487,7 +507,7 @@ def main():
     # Initialize the agent if not already in session state
     if "agent" not in st.session_state:
         with st.spinner("Initialisation de l'agent..."):
-            st.session_state.agent = initialize_agent(model_type, model_config)
+            st.session_state.agent = initialize_agent(model_type, model_config, max_steps)
     
     # Initialize conversation history if not already in session state
     if "messages" not in st.session_state:
